@@ -6,18 +6,17 @@ import {
   shaderMaterial,
   useHelper,
   useTexture,
+  SpotLight,
+  useDepthBuffer,
 } from "@react-three/drei";
 import { extend, useFrame, useThree } from "@react-three/fiber";
-import { RefObject, useEffect, useLayoutEffect, useRef } from "react";
+import { RefObject, useEffect, useRef } from "react";
 import { a, useSpring } from "@react-spring/three";
-import { MeshLineGeometry, MeshLineMaterial } from "meshline";
 import {
   AdditiveBlending,
   Color,
   Mesh,
   RepeatWrapping,
-  ShaderLib,
-  SpotLight,
   SpotLightHelper,
   Vector3,
 } from "three";
@@ -40,32 +39,36 @@ import { vertexShader, fragmentShader } from "./shaders";
 import Grooves from "./Grooves";
 import Points from "./Points";
 import StripeBackground from "./StripeBackground";
-
-extend({ MeshLineGeometry, MeshLineMaterial });
-
-const GrainMaterial = shaderMaterial(
-  {
-    uLightPos: new Vector3(0, 5, 3),
-    uNoiseCoef: 3.5,
-    uLightColor: new Color("#ffffff"),
-    uColor: new Color("#ff7300"),
-  },
-  // vertexShader,
-  ShaderLib.lambert.vertexShader,
-  fragmentShader
-);
-
-extend({ GrainMaterial });
+const glslify = require("glslify");
 
 const cameraPosition = new Vector3(
   pickRandomDecimalFromInterval(-15, 15),
   pickRandomDecimalFromInterval(-15, 15),
   0
 );
+
+const GrainMaterial = shaderMaterial(
+  {
+    uLightPos: new Vector3(cameraPosition.x, cameraPosition.y, 15),
+    uLightColor: new Color("#ffffff"),
+    uLightIntensity: 0.5,
+    uColor: new Color("#ffffff"),
+    uNoiseCoef: 5,
+    uNoiseMin: 0.5,
+    uNoiseMax: 200,
+    uNoiseScale: 2,
+  },
+  vertexShader,
+  glslify(fragmentShader)
+);
+
+extend({ GrainMaterial });
+
 const bgColor = pickRandom(DARK_BG_COLORS);
 const primaryColor = pickRandom(COLORS);
 const secondaryColor = pickRandom(COLORS);
 const hasGradient = pickRandomBoolean();
+const hasFog = pickRandom([...new Array(19).fill(null).map(() => false), true]);
 const hasMixedColors = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
@@ -318,6 +321,30 @@ const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
 
 /****************************************************** */
 
+const strobesCount = pickRandom([0, pickRandom([1, 2])]);
+const strobesSides = getSides(strobesCount, remainingSides);
+const strobes = new Array(strobesCount).fill(null).map((_, outerIndex) => {
+  const anglePower = pickRandomDecimalFromInterval(1, 2);
+  const angle = pickRandomDecimalFromInterval(1, 3);
+  const distance = pickRandomDecimalFromInterval(30, 50);
+  const color = pickRandom(COLORS);
+  console.log(strobesSides);
+
+  console.log(Math.round(12 * Math.cos(strobesSides[outerIndex]) * 100) / 100);
+  console.log(Math.round(12 * Math.sin(strobesSides[outerIndex]) * 100) / 100);
+  return {
+    distance,
+    angle,
+    anglePower,
+    color,
+    targetX: Math.round(12 * Math.cos(strobesSides[outerIndex]) * 100) / 100,
+    targetY: Math.round(12 * Math.sin(strobesSides[outerIndex]) * 100) / 100,
+    rotation: strobesSides[outerIndex],
+  };
+});
+
+/****************************************************** */
+
 const circleCount = pickRandom([0, 1, 2, 3]);
 const circles = new Array(circleCount).fill(null).map(() => {
   const distort = pickRandomDecimalFromInterval(0, 0.5);
@@ -387,7 +414,7 @@ const RingSection = ({
       />
       {/*
       // @ts-ignore */}
-      {/* <grainMaterial /> */}
+      {/* <grainMaterial uColor={section.color} /> */}
       {section.type === 1 ? (
         hasGradient && section.color === primaryColor ? (
           <meshStandardMaterial
@@ -429,67 +456,71 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     aspect: state.viewport.aspect,
   }));
 
-  const meshLineRef = useRef<Mesh>(null);
-  const spotLight = useRef<SpotLight>(null);
-  // useHelper(spotLight, SpotLightHelper, "red");
+  const spotLightRefs = useRef<any[]>([]);
 
+  useEffect(() => {
+    spotLightRefs.current = spotLightRefs.current.slice(0, strobesCount);
+
+    strobes.forEach((strobe, i) => {
+      if (!spotLightRefs.current[i]) {
+        return;
+      }
+
+      spotLightRefs.current[i].target.position.set(
+        strobe.targetX,
+        strobe.targetY,
+        0.5
+      );
+      spotLightRefs.current[i].target.updateMatrixWorld();
+    });
+  }, []);
+  console.log(spotLightRefs.current);
   const [spotLightSprings, setSpotLightSprings] = useSpring(() => ({
     angle: 0,
   }));
 
-  useEffect(() => {
-    setSpotLightSprings.start({
-      from: { angle: 0 },
-      to: { angle: 0.7 },
-      loop: { reverse: true },
-      config: { mass: 1, tension: 60, friction: 40 },
-    });
-  }, [setSpotLightSprings]);
+  // useEffect(() => {
+  //   setSpotLightSprings.start({
+  //     from: { angle: 0 },
+  //     to: { angle: 0.7 },
+  //     loop: { reverse: true },
+  //     config: { mass: 1, tension: 60, friction: 40 },
+  //   });
+  // }, [setSpotLightSprings]);
 
-  useFrame(({ clock }) => {
-    // spotLight.current?.target.position.set(
-    //   Math.sin(clock.getElapsedTime()) * 50,
-    //   0,
-    //   0
-    // );
-    // spotLight.current?.target.updateMatrixWorld();
-    // spotLight.current?.position.set(
-    //   Math.sin(clock.getElapsedTime()) * 50,
-    //   0,
-    //   50
-    // );
-    // spotLight.current?.angle.
-  });
-
-  // useLayoutEffect(() => {
-  //   // @ts-ignore
-  //   meshLineRef.current!.geometry.setPoints(
-  //     // [0, 0, 0, 10, -2, 0, 10, 3, 0, 15, 1, 0, 15, 10, 0, 20, 10, 0],
-  //     // [
-  //     //   0, 0, 0, 10, -2, 0, 10, 3, 0, 20, 1, 0, 20, 6, 0, 30, 4, 0, 30, 9, 0,
-  //     //   40, 7, 0,
-  //     // ],
-  //     [0, 0, 0, 15, -5, 0, 15, 0, 0, 30, -7, 0],
-  //     (p: number) => Math.sin(p * 3.5) * 4
-  //   );
+  // useEffect(() => {
+  //   strobes.forEach((strobe) => {
+  //     spotLight.current?.target.position.set(-20, 0, 5);
+  //     spotLight.current?.target.updateMatrixWorld();
+  //   });
   // }, []);
+
+  const depthBuffer = useDepthBuffer({ frames: 1 });
 
   return (
     <>
       <color attach="background" args={[bgColor]} />
+      {/* {hasFog && <fog attach="fog" args={[bgColor, 5, 60]} />} */}
       <OrbitControls enabled={true} />
       <ambientLight />
       <group position={cameraPosition}>
-        {/* 
-      // @ts-ignore */}
-        {/* <a.spotLight
-          ref={spotLight}
-          position={[-cameraPosition.x, -cameraPosition.y, 50]}
-          angle={spotLightSprings.angle}
-          penumbra={2}
-          intensity={10}
-          distance={60}
-        /> */}
+        {strobes.map((strobe, i) => (
+          // @ts-ignore
+          <SpotLight
+            key={i}
+            position={[0, 0, 0.5]}
+            rotation={[0, 0, 0]}
+            ref={(el) => (spotLightRefs.current[i] = el)}
+            angle={strobe.angle}
+            penumbra={1}
+            intensity={10}
+            distance={strobe.distance}
+            attenuation={strobe.distance}
+            anglePower={strobe.anglePower}
+            color={strobe.color}
+            depthBuffer={depthBuffer}
+          />
+        ))}
 
         {primaryRingSides.map(({ ringSections }, outerIndex) => (
           <group key={outerIndex}>
@@ -509,7 +540,6 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         {secondaryRingSides.map(({ ringSections }, outerIndex) => (
           <group key={outerIndex} position={[0, 0, 0.05]}>
             {ringSections.map((section, innerIndex) => (
-              // new Array(12 + outerIndex * 2).fill(null).map
               <RingSection
                 key={innerIndex}
                 section={section}
@@ -597,26 +627,6 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
           </group>
         ))}
 
-        {/* <mesh ref={meshLineRef}> */}
-        {/*
-      // @ts-ignore */}
-        {/* <meshLineGeometry attach="geometry" /> */}
-        {/*
-      // @ts-ignore */}
-        {/* <meshLineMaterial
-            attach="material"
-            transparent
-            opacity={0.5}
-            depthWrite={false}
-            toneMapped={false}
-            lineWidth={1}
-            color={"red"}
-            // dashArray={dashArray}
-            // dashOffset={dashOffset}
-            // dashRatio={dashRatio}
-            blending={AdditiveBlending}
-          />
-        </mesh> */}
         {hasPointsBackground && <Points type={pointsBackgroundType} />}
         {hasStripeBackground && <StripeBackground />}
       </group>
