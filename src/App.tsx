@@ -134,7 +134,6 @@ const App = () => {
       ref={canvasRef}
       camera={{ position: [0, 0, 30] }}
       dpr={window.devicePixelRatio}
-      // shadows
     >
       <Suspense fallback={null}>
         <Scene canvasRef={canvasRef} />

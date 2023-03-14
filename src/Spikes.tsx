@@ -1,4 +1,5 @@
-import { a } from "@react-spring/three";
+import { a, SpringValue } from "@react-spring/three";
+import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { AdditiveBlending, Mesh, Vector3 } from "three";
 
@@ -10,6 +11,7 @@ const Spikes = ({
   thetaStart,
   gap,
   cameraPosition,
+  scale,
 }: {
   index: number;
   radius: number;
@@ -17,22 +19,30 @@ const Spikes = ({
   color: string;
   thetaStart: number;
   gap: number;
-  cameraPosition: Vector3;
+  cameraPosition: SpringValue<number[]>;
+  scale: SpringValue<number[]>;
 }) => {
   const meshRef = useRef<Mesh>(null);
 
-  useEffect(() => {
+  useFrame(() => {
     const angle = thetaStart + index * Math.PI * gap;
 
     meshRef
       .current!.position.set(Math.cos(angle), Math.sin(angle), 0)
-      .multiplyScalar(radius * 21 + (depth / 2) * 1);
+      .multiplyScalar(radius * 21 + (depth / 2) * scale.get()[2]);
 
-    meshRef.current?.lookAt(cameraPosition);
-  }, [cameraPosition, depth, gap, index, radius, thetaStart]);
+    meshRef.current?.lookAt(
+      new Vector3(
+        cameraPosition.get()[0],
+        cameraPosition.get()[1],
+        cameraPosition.get()[2]
+      )
+    );
+  });
 
   return (
-    <a.mesh ref={meshRef}>
+    // @ts-ignore
+    <a.mesh ref={meshRef} scale={scale}>
       <boxGeometry args={[0.05, 0.05, depth, 1, 1]} />
       <meshBasicMaterial
         color={color}

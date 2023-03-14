@@ -3,30 +3,32 @@ import {
   GradientTexture,
   MeshDistortMaterial,
   OrbitControls,
-  shaderMaterial,
-  useHelper,
   useTexture,
   SpotLight,
-  useDepthBuffer,
 } from "@react-three/drei";
-import { extend, useFrame, useThree } from "@react-three/fiber";
-import { RefObject, useEffect, useRef } from "react";
-import { a, useSpring } from "@react-spring/three";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
-  AdditiveBlending,
-  Color,
-  Mesh,
-  RepeatWrapping,
-  SpotLightHelper,
-  Vector3,
-} from "three";
+  RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { a, SpringValue, useSpring, useSprings } from "@react-spring/three";
+import { AdditiveBlending, Vector3 } from "three";
 import {
+  COLORED_BG_COLORS,
   COLORS,
   DARK_BG_COLORS,
+  DARK_COLORS,
+  DARK_GRAY_COLORS,
   GRAY_COLORS,
+  LIGHT_BG_COLORS,
+  LIGHT_COLORS,
   LIGHT_GRAY_COLORS,
 } from "./constants";
 import {
+  getSizeByAspect,
   pickRandom,
   pickRandomBoolean,
   pickRandomColorWithTheme,
@@ -35,11 +37,10 @@ import {
   range,
 } from "./utils";
 import Spikes from "./Spikes";
-import { vertexShader, fragmentShader } from "./shaders";
 import Grooves from "./Grooves";
 import Points from "./Points";
 import StripeBackground from "./StripeBackground";
-const glslify = require("glslify");
+import { isMobile, isMobileSafari } from "react-device-detect";
 
 const cameraPosition = new Vector3(
   pickRandomDecimalFromInterval(-15, 15),
@@ -47,50 +48,103 @@ const cameraPosition = new Vector3(
   0
 );
 
-const GrainMaterial = shaderMaterial(
-  {
-    uLightPos: new Vector3(cameraPosition.x, cameraPosition.y, 15),
-    uLightColor: new Color("#ffffff"),
-    uLightIntensity: 0.5,
-    uColor: new Color("#ffffff"),
-    uNoiseCoef: 5,
-    uNoiseMin: 0.5,
-    uNoiseMax: 200,
-    uNoiseScale: 2,
-  },
-  vertexShader,
-  glslify(fragmentShader)
-);
+enum BgType {
+  "Dark" = 0,
+  "Light" = 1,
+  "Colored" = 2,
+}
+const bgType = pickRandom([
+  ...new Array(15).fill(null).map(() => 0),
+  1,
+  ...new Array(3).fill(null).map(() => 2),
+]);
 
-extend({ GrainMaterial });
+enum MasterAmplificationType {
+  "Default" = 0,
+  "EmptySides" = 1,
+  "Grooves" = 2,
+  "DarkLitStrobes" = 3,
+  "TertiaryQuaternarySides" = 4,
+}
+const masterType: MasterAmplificationType = pickRandom([
+  ...new Array(40).fill(null).map(() => 0),
+  ...new Array(2).fill(null).map(() => 1),
+  ...new Array(5).fill(null).map(() => 2),
+  ...new Array(2).fill(null).map(() => (bgType === BgType.Light ? 0 : 3)),
+  ...new Array(5).fill(null).map(() => 4),
+]);
 
-const bgColor = pickRandom(DARK_BG_COLORS);
-const primaryColor = pickRandom(COLORS);
-const secondaryColor = pickRandom(COLORS);
+const bgColor =
+  bgType === BgType.Light
+    ? pickRandom(LIGHT_BG_COLORS)
+    : bgType === BgType.Colored
+    ? pickRandom(COLORED_BG_COLORS)
+    : pickRandom(DARK_BG_COLORS);
+const primaryColor =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(LIGHT_COLORS);
+const secondaryColor =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(LIGHT_COLORS);
 const hasGradient = pickRandomBoolean();
-const hasFog = pickRandom([...new Array(19).fill(null).map(() => false), true]);
+const hasFog = pickRandom([...new Array(14).fill(null).map(() => false), true]);
+const fogColor = pickRandom([bgColor, primaryColor]);
 const hasMixedColors = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
 ]);
 const hasStripeBackground = pickRandom([
-  ...new Array(9).fill(null).map(() => false),
+  ...new Array(bgType === BgType.Light ? 4 : 9).fill(null).map(() => false),
   true,
 ]);
 const hasPointsBackground = hasStripeBackground
   ? false
-  : pickRandom([...new Array(4).fill(null).map(() => false), true]);
+  : pickRandom([
+      ...new Array(bgType === BgType.Light ? 2 : 4).fill(null).map(() => false),
+      true,
+    ]);
+console.log("bgType", bgType);
+console.log("masterType", masterType);
+console.log("hasFog", hasFog);
+console.log("hasStripeBackground", hasStripeBackground);
+console.log("hasPointsBackground", hasPointsBackground);
 export enum PointsBackgroundType {
   "Points" = 0,
   "Lines" = 1,
 }
-const pointsBackgroundType = pickRandom([0, 0, 1]);
+const pointsBackgroundType: PointsBackgroundType = pickRandom([0, 0, 1]);
 
 const sides = new Array(12).fill(null).map((_, i) => i * (Math.PI / 6));
-const primarySideCount = pickRandom([2, 3, 4, 5, 6]);
-const secondarySideCount = pickRandom([1, 2, 3]);
-const tertiarySideCount = pickRandom([1, 2]);
-const quaternarySideCount = pickRandom([1, 2]);
+const primarySideCount =
+  bgType === BgType.Light
+    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
+      ? pickRandom([3, 4])
+      : pickRandom([4, 5, 6])
+    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+    ? pickRandom([2, 3])
+    : pickRandom([2, 3, 4, 5, 6]);
+const secondarySideCount =
+  bgType === BgType.Light
+    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
+      ? pickRandom([2])
+      : pickRandom([3, 4])
+    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+    ? pickRandom([1])
+    : pickRandom([1, 2, 3]);
+const tertiarySideCount =
+  bgType === BgType.Light
+    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
+      ? pickRandom([6, 7, 8])
+      : pickRandom([2, 3])
+    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+    ? pickRandom([4, 5, 6])
+    : pickRandom([1, 2]);
+const quaternarySideCount =
+  bgType === BgType.Light
+    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
+      ? pickRandom([6, 7, 8])
+      : pickRandom([2, 3])
+    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+    ? pickRandom([4, 5, 6])
+    : pickRandom([1, 2]);
 const primaryLengths = [0, 0, 1 * (Math.PI / 6), 2 * (Math.PI / 6)];
 const secondarylengths = [
   0,
@@ -98,13 +152,15 @@ const secondarylengths = [
   2 * (Math.PI / 6),
   3 * (Math.PI / 6),
 ];
-// enum RingSectionTypes {
-//   "empty" = 0,
-//   "filled" = 1,
-//   "striped" = 2,
-//   "textured" = 3,
-// }
-const ringSectionTypes = [0, 1];
+enum RingSectionTypes {
+  "empty" = 0,
+  "filled" = 1,
+}
+const ringSectionTypes: RingSectionTypes[] =
+  masterType === MasterAmplificationType.EmptySides ||
+  masterType === MasterAmplificationType.Grooves
+    ? [...new Array(9).fill(null).map(() => 0), 1]
+    : [0, 1];
 
 const getSides = (count: number, sideArray: number[]) =>
   new Array(count).fill(null).reduce<number[]>((array) => {
@@ -151,7 +207,10 @@ const primaryRingSides = getSides(primarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor = pickRandom(GRAY_COLORS);
+      const strokeColor =
+        bgType === BgType.Light
+          ? pickRandom(DARK_GRAY_COLORS)
+          : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         pickRandom(primaryLengths),
         pickRandom(primaryLengths) * (i / 10),
@@ -177,7 +236,10 @@ const secondaryRingSides = getSides(secondarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor = pickRandom(GRAY_COLORS);
+      const strokeColor =
+        bgType === BgType.Light
+          ? pickRandom(DARK_GRAY_COLORS)
+          : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         pickRandom(primaryLengths),
         pickRandom(primaryLengths) * (i / 10),
@@ -203,7 +265,10 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor = pickRandom(GRAY_COLORS);
+      const strokeColor =
+        bgType === BgType.Light
+          ? pickRandom(DARK_GRAY_COLORS)
+          : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         ...new Array(81)
           .fill(null)
@@ -236,7 +301,10 @@ const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor = pickRandom(GRAY_COLORS);
+      const strokeColor =
+        bgType === BgType.Light
+          ? pickRandom(DARK_GRAY_COLORS)
+          : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         ...new Array(36)
           .fill(null)
@@ -273,7 +341,10 @@ const remainingSides = sides.filter(
 
 /****************************************************** */
 
-const spikesCount = pickRandom([1, 2, 3]);
+const spikesCount =
+  masterType === MasterAmplificationType.EmptySides
+    ? pickRandom([3, 4, 5])
+    : pickRandom([1, 2, 3]);
 const spikes = new Array(spikesCount).fill(null).map(() => {
   const thetaStart = pickRandom([
     pickRandom(sides),
@@ -296,14 +367,23 @@ const spikes = new Array(spikesCount).fill(null).map(() => {
 
 /****************************************************** */
 
-const groovesCount = pickRandom([1, 2, 3]);
-const groovesSides = getSides(groovesCount, remainingSides);
+const groovesCount =
+  masterType === MasterAmplificationType.Grooves
+    ? pickRandom([10, 11, 12])
+    : pickRandom([1, 2, 3]);
+const groovesSides =
+  masterType === MasterAmplificationType.Grooves
+    ? getSides(groovesCount, sides)
+    : getSides(groovesCount, remainingSides);
 const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
-  const radius = pickRandomDecimalFromInterval(0.62, 1.6);
+  const radius = pickRandomDecimalFromInterval(0.4, 1.6);
   const width = pickRandomDecimalFromInterval(0.4, 0.6);
-  const gap = range(0.62, 1.6, 0.02, 0.015, radius);
+  const gap = range(0.4, 1.6, 0.02, 0.015, radius);
   const count = pickRandomIntFromInterval(6, 36);
-  const color = pickRandom(COLORS);
+  const color =
+    bgType === BgType.Light
+      ? pickRandom(DARK_COLORS)
+      : pickRandom(LIGHT_COLORS);
   const hasSameDepth = pickRandomBoolean();
   const uniDepth = pickRandomDecimalFromInterval(2, 3);
 
@@ -321,25 +401,24 @@ const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
 
 /****************************************************** */
 
-const strobesCount = pickRandom([0, pickRandom([1, 2])]);
+const strobesCount = 2;
+// bgType === BgType.Light
+//   ? 0
+//   : masterType === MasterAmplificationType.DarkLitStrobes || hasFog
+//   ? pickRandom([2, 3, 4])
+//   : pickRandom([0, 0, 0, pickRandom([1, 2])]);
 const strobesSides = getSides(strobesCount, remainingSides);
 const strobes = new Array(strobesCount).fill(null).map((_, outerIndex) => {
-  const anglePower = pickRandomDecimalFromInterval(1, 2);
-  const angle = pickRandomDecimalFromInterval(1, 3);
-  const distance = pickRandomDecimalFromInterval(30, 50);
-  const color = pickRandom(COLORS);
-  console.log(strobesSides);
+  const anglePower = pickRandomDecimalFromInterval(4, 5);
+  const angle = pickRandomDecimalFromInterval(3, 4);
+  const color = pickRandom(LIGHT_COLORS);
 
-  console.log(Math.round(12 * Math.cos(strobesSides[outerIndex]) * 100) / 100);
-  console.log(Math.round(12 * Math.sin(strobesSides[outerIndex]) * 100) / 100);
   return {
-    distance,
     angle,
     anglePower,
     color,
     targetX: Math.round(12 * Math.cos(strobesSides[outerIndex]) * 100) / 100,
     targetY: Math.round(12 * Math.sin(strobesSides[outerIndex]) * 100) / 100,
-    rotation: strobesSides[outerIndex],
   };
 });
 
@@ -374,26 +453,29 @@ const RingSection = ({
   innerRadius,
   outerRadius,
   section,
+  springRotation,
 }: {
   outerIndex: number;
   innerIndex: number;
   innerRadius: number;
   outerRadius: number;
   section: RingSectionData;
+  springRotation: SpringValue<number[]>;
 }) => {
   const texture = useTexture({
-    alphaMap: `${process.env.PUBLIC_URL}/texture.jpg`,
+    map: `${process.env.PUBLIC_URL}/texture.jpg`,
   });
 
-  Object.keys(texture).forEach((key) => {
-    texture[key as keyof typeof texture].wrapS = RepeatWrapping;
-    texture[key as keyof typeof texture].wrapT = RepeatWrapping;
-    texture[key as keyof typeof texture].repeat.x = 1 + outerRadius / 4;
-    texture[key as keyof typeof texture].repeat.y = 1 + outerRadius / 4;
-  });
+  // Object.keys(texture).forEach((key) => {
+  //   texture[key as keyof typeof texture].wrapS = RepeatWrapping;
+  //   texture[key as keyof typeof texture].wrapT = RepeatWrapping;
+  //   texture[key as keyof typeof texture].repeat.x = 1 + outerRadius / 4;
+  //   texture[key as keyof typeof texture].repeat.y = 1 + outerRadius / 4;
+  // });
 
   return (
-    <mesh>
+    // @ts-ignore
+    <a.mesh rotation={springRotation}>
       <ringGeometry
         args={[
           innerRadius,
@@ -412,11 +494,8 @@ const RingSection = ({
             : Math.PI / (6 + outerIndex),
         ]}
       />
-      {/*
-      // @ts-ignore */}
-      {/* <grainMaterial uColor={section.color} /> */}
       {section.type === 1 ? (
-        hasGradient && section.color === primaryColor ? (
+        hasGradient && !isMobileSafari && section.color === primaryColor ? (
           <meshStandardMaterial
             transparent
             opacity={section.opacity}
@@ -447,7 +526,7 @@ const RingSection = ({
           <Edges scale={1} color={section.strokeColor} />
         </>
       )}
-    </mesh>
+    </a.mesh>
   );
 };
 
@@ -458,7 +537,62 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
   const spotLightRefs = useRef<any[]>([]);
 
-  useEffect(() => {
+  const [cameraSprings, setCameraSprings] = useSpring(() => ({
+    position: [cameraPosition.x, cameraPosition.y, cameraPosition.z],
+  }));
+
+  const [primarySidesSpring, setPrimarySidesSpring] = useSprings(
+    primaryRingSides[0].ringSections.length,
+    () => ({
+      rotation: [0, 0, 0],
+    })
+  );
+
+  const [secondarySidesSpring, setSecondarySidesSpring] = useSprings(
+    secondaryRingSides[0].ringSections.length,
+    () => ({
+      rotation: [0, 0, 0],
+    })
+  );
+
+  const [tertiarySidesSpring, setTertiarySidesSpring] = useSprings(
+    tertiaryRingSides[0].ringSections.length,
+    () => ({
+      rotation: [0, 0, 0],
+    })
+  );
+
+  const [quaternarySidesSpring, setQuaternarySidesSpring] = useSprings(
+    quaternaryRingSides[0].ringSections.length,
+    () => ({
+      rotation: [0, 0, 0],
+    })
+  );
+
+  const [strobeSprings, setStrobeSprings] = useSprings(strobesCount, (i) => ({
+    rotation: strobesSides[i],
+  }));
+
+  const [grooveGapSprings, setGrooveGapSprings] = useSprings(
+    groovesCount,
+    (i) => ({
+      gap: grooves[i].grooves[0].gap,
+    })
+  );
+
+  const [grooveScaleSprings, setGrooveScaleSprings] = useSprings(36, (i) => ({
+    scale: [1, 1, 1],
+  }));
+
+  const [spikeScaleSprings, setSpikeScaleSprings] = useSprings(18, (i) => ({
+    scale: [1, 1, 1],
+  }));
+
+  const [circleSprings, setCircleSprings] = useSprings(circleCount, (i) => ({
+    rotation: [0, 0, circles[i].rotation],
+  }));
+
+  const setStrobeLights = useCallback(() => {
     spotLightRefs.current = spotLightRefs.current.slice(0, strobesCount);
 
     strobes.forEach((strobe, i) => {
@@ -466,59 +600,227 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         return;
       }
 
-      spotLightRefs.current[i].target.position.set(
-        strobe.targetX,
-        strobe.targetY,
-        0.5
-      );
+      const targetX =
+        Math.round(12 * Math.cos(strobeSprings[i].rotation.get()) * 100) / 100;
+      const targetY =
+        Math.round(12 * Math.sin(strobeSprings[i].rotation.get()) * 100) / 100;
+
+      spotLightRefs.current[i].target.position.set(targetX, targetY, 0.5);
       spotLightRefs.current[i].target.updateMatrixWorld();
     });
-  }, []);
-  console.log(spotLightRefs.current);
-  const [spotLightSprings, setSpotLightSprings] = useSpring(() => ({
-    angle: 0,
-  }));
+  }, [strobeSprings]);
 
-  // useEffect(() => {
-  //   setSpotLightSprings.start({
-  //     from: { angle: 0 },
-  //     to: { angle: 0.7 },
-  //     loop: { reverse: true },
-  //     config: { mass: 1, tension: 60, friction: 40 },
-  //   });
-  // }, [setSpotLightSprings]);
+  useLayoutEffect(() => {
+    setStrobeLights();
+  }, [setStrobeLights]);
 
-  // useEffect(() => {
-  //   strobes.forEach((strobe) => {
-  //     spotLight.current?.target.position.set(-20, 0, 5);
-  //     spotLight.current?.target.updateMatrixWorld();
-  //   });
-  // }, []);
+  useFrame(() => {
+    setStrobeLights();
+  });
 
-  const depthBuffer = useDepthBuffer({ frames: 1 });
+  const groovesMovingForward = useRef(true);
+  const animateGrooves = useCallback(() => {
+    setGrooveScaleSprings.start((i) => ({
+      scale: groovesMovingForward.current
+        ? [1, 1, pickRandomDecimalFromInterval(0.5, 1.5, 2, Math.random)]
+        : [1, 1, 1],
+      onRest: () => {
+        if (i === 35) {
+          groovesMovingForward.current = !groovesMovingForward.current;
+          animateGrooves();
+        }
+      },
+      delay: i * 20,
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+  }, [setGrooveScaleSprings]);
+
+  const animateSpikes = useCallback(() => {
+    setSpikeScaleSprings.start((i) => ({
+      from: { scale: [1, 1, spikeScaleSprings[i].scale.get()[2]] },
+      to: {
+        scale: [1, 1, pickRandomDecimalFromInterval(0.9, 1.1, 2, Math.random)],
+      },
+      loop: { reverse: true },
+      config: { mass: 3, tension: 50, friction: 25 },
+    }));
+  }, [setSpikeScaleSprings, spikeScaleSprings]);
+
+  useEffect(() => {
+    animateGrooves();
+    animateSpikes();
+  }, [animateGrooves, animateSpikes]);
+
+  const onPointerDown = useCallback(() => {
+    setCameraSprings.start({
+      position: [
+        pickRandomDecimalFromInterval(-15, 15, 2, Math.random),
+        pickRandomDecimalFromInterval(-15, 15, 2, Math.random),
+        0,
+      ],
+      config: { mass: 3, tension: 120, friction: 25 },
+    });
+
+    setPrimarySidesSpring.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          primarySidesSpring[i].rotation.get()[2] - Math.PI,
+          primarySidesSpring[i].rotation.get()[2] + Math.PI,
+          2,
+          Math.random
+        ),
+      ],
+      delay: i * 20,
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+    setSecondarySidesSpring.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          secondarySidesSpring[i].rotation.get()[2] - Math.PI,
+          secondarySidesSpring[i].rotation.get()[2] + Math.PI,
+          2,
+          Math.random
+        ),
+      ],
+      delay: i * 20,
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+    setTertiarySidesSpring.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          tertiarySidesSpring[i].rotation.get()[2] - Math.PI,
+          tertiarySidesSpring[i].rotation.get()[2] + Math.PI,
+          2,
+          Math.random
+        ),
+      ],
+      delay: i * 20,
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+    setQuaternarySidesSpring.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          quaternarySidesSpring[i].rotation.get()[2] - Math.PI,
+          quaternarySidesSpring[i].rotation.get()[2] + Math.PI,
+          2,
+          Math.random
+        ),
+      ],
+      delay: i * 20,
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+
+    setStrobeSprings.start((i) => ({
+      rotation: pickRandomDecimalFromInterval(
+        strobeSprings[i].rotation.get() - Math.PI / 8,
+        strobeSprings[i].rotation.get() + Math.PI / 8,
+        2,
+        Math.random
+      ),
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+
+    setGrooveGapSprings.start((i) => {
+      const newRadius = pickRandomDecimalFromInterval(
+        grooves[i].grooves[0].radius,
+        3,
+        2,
+        Math.random
+      );
+
+      return {
+        gap: range(0.4, 3, 0.02, 0.03, newRadius),
+        config: { mass: 3, tension: 100, friction: 25 },
+      };
+    });
+
+    setCircleSprings.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          circleSprings[i].rotation.get()[2] - Math.PI / 8,
+          circleSprings[i].rotation.get()[2] + Math.PI / 8,
+          2,
+          Math.random
+        ),
+      ],
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+  }, [
+    setPrimarySidesSpring,
+    setSecondarySidesSpring,
+    setTertiarySidesSpring,
+    setQuaternarySidesSpring,
+    primarySidesSpring,
+    secondarySidesSpring,
+    tertiarySidesSpring,
+    quaternarySidesSpring,
+    setStrobeSprings,
+    strobeSprings,
+    setCameraSprings,
+    setGrooveGapSprings,
+    setCircleSprings,
+    circleSprings,
+  ]);
+
+  useEffect(() => {
+    const ref = canvasRef?.current;
+
+    if (!ref) {
+      return;
+    }
+
+    ref.addEventListener("pointerdown", onPointerDown);
+
+    return () => {
+      ref.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [onPointerDown, canvasRef]);
 
   return (
     <>
-      <color attach="background" args={[bgColor]} />
-      {/* {hasFog && <fog attach="fog" args={[bgColor, 5, 60]} />} */}
+      {bgType !== BgType.Light && (
+        <color attach="background" args={[bgColor]} />
+      )}
+      {hasFog && <fog attach="fog" args={[fogColor, 5, 30]} />}
       <OrbitControls enabled={true} />
-      <ambientLight />
-      <group position={cameraPosition}>
+      <ambientLight
+        intensity={
+          masterType === MasterAmplificationType.DarkLitStrobes ? 0.1 : 1
+        }
+      />
+      {/*
+      // @ts-ignore */}
+      <a.group
+        {...cameraSprings}
+        scale={[
+          getSizeByAspect(1, aspect),
+          getSizeByAspect(1, aspect),
+          getSizeByAspect(1, aspect),
+        ]}
+      >
         {strobes.map((strobe, i) => (
           // @ts-ignore
           <SpotLight
             key={i}
             position={[0, 0, 0.5]}
-            rotation={[0, 0, 0]}
             ref={(el) => (spotLightRefs.current[i] = el)}
             angle={strobe.angle}
             penumbra={1}
             intensity={10}
-            distance={strobe.distance}
-            attenuation={strobe.distance}
+            distance={40}
+            attenuation={isMobile ? 25 : 30}
             anglePower={strobe.anglePower}
             color={strobe.color}
-            depthBuffer={depthBuffer}
           />
         ))}
 
@@ -532,6 +834,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex + 1}
                 outerRadius={innerIndex + 2}
+                springRotation={primarySidesSpring[innerIndex].rotation}
               />
             ))}
           </group>
@@ -547,6 +850,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 2 + 1}
                 outerRadius={innerIndex * 2 + 3}
+                springRotation={secondarySidesSpring[innerIndex].rotation}
               />
             ))}
           </group>
@@ -562,6 +866,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 4 + 1}
                 outerRadius={innerIndex * 4 + 5}
+                springRotation={tertiarySidesSpring[innerIndex].rotation}
               />
             ))}
           </group>
@@ -577,6 +882,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 8 + 1}
                 outerRadius={innerIndex * 8 + 9}
+                springRotation={quaternarySidesSpring[innerIndex].rotation}
               />
             ))}
           </group>
@@ -590,27 +896,31 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 index={ii}
                 radius={0.05}
                 {...o}
-                cameraPosition={cameraPosition}
+                cameraPosition={cameraSprings.position}
+                scale={spikeScaleSprings[ii].scale}
               />
             ))}
           </group>
         ))}
 
         {grooves.map((groove, i) => (
-          <group key={i} position={[0, 0, -0.05]}>
+          <group key={i} position={[0, 0, i * -0.01]}>
             {groove.grooves.map((o, ii) => (
               <Grooves
                 key={ii}
                 index={ii}
                 {...o}
-                cameraPosition={cameraPosition}
+                cameraPosition={cameraSprings.position}
+                scale={grooveScaleSprings[ii].scale}
+                gap={grooveGapSprings[i].gap}
               />
             ))}
           </group>
         ))}
 
         {circles.map((circle, i) => (
-          <group key={i} rotation={[0, 0, circle.rotation]}>
+          // @ts-ignore
+          <a.group key={i} rotation={circleSprings[i].rotation}>
             <mesh position={[10, -10, -0.1]}>
               <circleGeometry args={[circle.radius, 128, 128]} />
               <MeshDistortMaterial
@@ -624,12 +934,11 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 distort={circle.distort}
               />
             </mesh>
-          </group>
+          </a.group>
         ))}
-
-        {hasPointsBackground && <Points type={pointsBackgroundType} />}
-        {hasStripeBackground && <StripeBackground />}
-      </group>
+      </a.group>
+      {hasPointsBackground && <Points type={pointsBackgroundType} />}
+      {hasStripeBackground && <StripeBackground />}
     </>
   );
 };
