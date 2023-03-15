@@ -89,6 +89,10 @@ const hasTexture = pickRandom([
   ...new Array(24).fill(null).map(() => false),
   true,
 ]);
+const hasSpotLightMode =
+  bgType === BgType.Light
+    ? false
+    : pickRandom([...new Array(12).fill(null).map(() => false), true]);
 const hasFog =
   bgType === BgType.Light
     ? false
@@ -112,11 +116,7 @@ const hasPointsBackground = hasStripeBackground
       ...new Array(bgType === BgType.Light ? 2 : 4).fill(null).map(() => false),
       true,
     ]);
-console.log("bgType", bgType);
-console.log("masterType", masterType);
-console.log("hasFog", hasFog);
-console.log("hasStripeBackground", hasStripeBackground);
-console.log("hasPointsBackground", hasPointsBackground);
+
 export enum PointsBackgroundType {
   "Points" = 0,
   "Lines" = 1,
@@ -193,7 +193,7 @@ enum RingSectionAltLength {
   "Irregular" = 1,
   "Flat" = 2,
 }
-const ringAltLength = pickRandom([0, 0, 0, 1, 2]);
+const ringAltLength = pickRandom([0, 0, 0, 1, 2, 2]);
 
 interface RingSectionData {
   thetaStart: number;
@@ -694,6 +694,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     animateSpikes();
   }, [animateGrooves, animateSpikes]);
 
+  const currentShuffleSide = useRef<number>(0);
   const onPointerDown = useCallback(() => {
     setCameraSprings.start({
       position: [
@@ -701,19 +702,31 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         pickRandomDecimalFromInterval(-15, 15, 2, Math.random),
         0,
       ],
-      config: { mass: 3, tension: 120, friction: 25 },
+      config: { mass: 3, tension: 100, friction: 25 },
     });
+
+    const symmetricalShuffle = pickRandom([false, true], Math.random);
+    const availableShuffleSides = sides.filter(
+      (side) => side !== currentShuffleSide.current
+    );
+    const newShuffleSide = symmetricalShuffle
+      ? pickRandom(availableShuffleSides, Math.random)
+      : currentShuffleSide.current;
+
+    currentShuffleSide.current = newShuffleSide;
 
     setPrimarySidesSpring.start((i) => ({
       rotation: [
         0,
         0,
-        pickRandomDecimalFromInterval(
-          primarySidesSpring[i].rotation.get()[2] - Math.PI,
-          primarySidesSpring[i].rotation.get()[2] + Math.PI,
-          2,
-          Math.random
-        ),
+        symmetricalShuffle
+          ? currentShuffleSide.current
+          : pickRandomDecimalFromInterval(
+              primarySidesSpring[i].rotation.get()[2] - Math.PI,
+              primarySidesSpring[i].rotation.get()[2] + Math.PI,
+              2,
+              Math.random
+            ),
       ],
       delay: i * 20,
       config: { mass: 3, tension: 100, friction: 25 },
@@ -722,12 +735,14 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       rotation: [
         0,
         0,
-        pickRandomDecimalFromInterval(
-          secondarySidesSpring[i].rotation.get()[2] - Math.PI,
-          secondarySidesSpring[i].rotation.get()[2] + Math.PI,
-          2,
-          Math.random
-        ),
+        symmetricalShuffle
+          ? currentShuffleSide.current
+          : pickRandomDecimalFromInterval(
+              secondarySidesSpring[i].rotation.get()[2] - Math.PI,
+              secondarySidesSpring[i].rotation.get()[2] + Math.PI,
+              2,
+              Math.random
+            ),
       ],
       delay: i * 20,
       config: { mass: 3, tension: 100, friction: 25 },
@@ -736,12 +751,14 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       rotation: [
         0,
         0,
-        pickRandomDecimalFromInterval(
-          tertiarySidesSpring[i].rotation.get()[2] - Math.PI,
-          tertiarySidesSpring[i].rotation.get()[2] + Math.PI,
-          2,
-          Math.random
-        ),
+        symmetricalShuffle
+          ? currentShuffleSide.current
+          : pickRandomDecimalFromInterval(
+              tertiarySidesSpring[i].rotation.get()[2] - Math.PI,
+              tertiarySidesSpring[i].rotation.get()[2] + Math.PI,
+              2,
+              Math.random
+            ),
       ],
       delay: i * 20,
       config: { mass: 3, tension: 100, friction: 25 },
@@ -750,12 +767,14 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       rotation: [
         0,
         0,
-        pickRandomDecimalFromInterval(
-          quaternarySidesSpring[i].rotation.get()[2] - Math.PI,
-          quaternarySidesSpring[i].rotation.get()[2] + Math.PI,
-          2,
-          Math.random
-        ),
+        symmetricalShuffle
+          ? currentShuffleSide.current
+          : pickRandomDecimalFromInterval(
+              quaternarySidesSpring[i].rotation.get()[2] - Math.PI,
+              quaternarySidesSpring[i].rotation.get()[2] + Math.PI,
+              2,
+              Math.random
+            ),
       ],
       delay: i * 20,
       config: { mass: 3, tension: 100, friction: 25 },
@@ -842,9 +861,21 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       <OrbitControls enabled={true} />
       <ambientLight
         intensity={
-          masterType === MasterAmplificationType.DarkLitStrobes ? 0.1 : 1
+          hasSpotLightMode ||
+          masterType === MasterAmplificationType.DarkLitStrobes
+            ? 0.1
+            : 1
         }
       />
+      {hasSpotLightMode && (
+        <spotLight
+          position={[0, 0, 20]}
+          intensity={1}
+          angle={0.75}
+          penumbra={1.5}
+          color={secondaryColor}
+        />
+      )}
       {/*
       // @ts-ignore */}
       <a.group
