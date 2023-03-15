@@ -85,8 +85,19 @@ const primaryColor =
 const secondaryColor =
   bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(LIGHT_COLORS);
 const hasGradient = pickRandomBoolean();
-const hasFog = pickRandom([...new Array(14).fill(null).map(() => false), true]);
+const hasTexture = pickRandom([
+  ...new Array(24).fill(null).map(() => false),
+  true,
+]);
+const hasFog =
+  bgType === BgType.Light
+    ? false
+    : pickRandom([...new Array(14).fill(null).map(() => false), true]);
 const fogColor = pickRandom([bgColor, primaryColor]);
+const hasColoredStroke = pickRandom([
+  ...new Array(9).fill(null).map(() => false),
+  true,
+]);
 const hasMixedColors = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
@@ -114,35 +125,19 @@ const pointsBackgroundType: PointsBackgroundType = pickRandom([0, 0, 1]);
 
 const sides = new Array(12).fill(null).map((_, i) => i * (Math.PI / 6));
 const primarySideCount =
-  bgType === BgType.Light
-    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
-      ? pickRandom([3, 4])
-      : pickRandom([4, 5, 6])
-    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+  masterType === MasterAmplificationType.TertiaryQuaternarySides
     ? pickRandom([2, 3])
     : pickRandom([2, 3, 4, 5, 6]);
 const secondarySideCount =
-  bgType === BgType.Light
-    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
-      ? pickRandom([2])
-      : pickRandom([3, 4])
-    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+  masterType === MasterAmplificationType.TertiaryQuaternarySides
     ? pickRandom([1])
     : pickRandom([1, 2, 3]);
 const tertiarySideCount =
-  bgType === BgType.Light
-    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
-      ? pickRandom([6, 7, 8])
-      : pickRandom([2, 3])
-    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+  masterType === MasterAmplificationType.TertiaryQuaternarySides
     ? pickRandom([4, 5, 6])
     : pickRandom([1, 2]);
 const quaternarySideCount =
-  bgType === BgType.Light
-    ? masterType === MasterAmplificationType.TertiaryQuaternarySides
-      ? pickRandom([6, 7, 8])
-      : pickRandom([2, 3])
-    : masterType === MasterAmplificationType.TertiaryQuaternarySides
+  masterType === MasterAmplificationType.TertiaryQuaternarySides
     ? pickRandom([4, 5, 6])
     : pickRandom([1, 2]);
 const primaryLengths = [0, 0, 1 * (Math.PI / 6), 2 * (Math.PI / 6)];
@@ -153,13 +148,23 @@ const secondarylengths = [
   3 * (Math.PI / 6),
 ];
 enum RingSectionTypes {
-  "empty" = 0,
-  "filled" = 1,
+  "Empty" = 0,
+  "Filled" = 1,
+  "Textured" = 2,
 }
 const ringSectionTypes: RingSectionTypes[] =
-  masterType === MasterAmplificationType.EmptySides ||
-  masterType === MasterAmplificationType.Grooves
+  bgType === BgType.Light
+    ? masterType === MasterAmplificationType.EmptySides ||
+      masterType === MasterAmplificationType.Grooves
+      ? [...new Array(3).fill(null).map(() => 0), 1]
+      : hasTexture
+      ? [0, 2, 2, 2]
+      : [0, 1, 1, 1]
+    : masterType === MasterAmplificationType.EmptySides ||
+      masterType === MasterAmplificationType.Grooves
     ? [...new Array(9).fill(null).map(() => 0), 1]
+    : hasTexture
+    ? [0, 2, 2, 2]
     : [0, 1];
 
 const getSides = (count: number, sideArray: number[]) =>
@@ -197,8 +202,11 @@ interface RingSectionData {
   color: string;
   strokeColor: string;
   opacity: number;
+  texture: number;
 }
 
+const coloredPrimaryStroke =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
 const primaryRingSides = getSides(primarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(36).fill(null).map((_, i) => {
@@ -207,14 +215,16 @@ const primaryRingSides = getSides(primarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor =
-        bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
-          : pickRandom(GRAY_COLORS);
+      const strokeColor = hasColoredStroke
+        ? coloredPrimaryStroke
+        : bgType === BgType.Light
+        ? pickRandom(DARK_GRAY_COLORS)
+        : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         pickRandom(primaryLengths),
         pickRandom(primaryLengths) * (i / 10),
       ]);
+      const texture = pickRandom([0, 1, 2]);
 
       return {
         thetaStart,
@@ -223,11 +233,14 @@ const primaryRingSides = getSides(primarySideCount, sides).map(
         color,
         opacity: 1,
         strokeColor,
+        texture,
       };
     }),
   })
 );
 
+const coloredSecondaryStroke =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
 const secondaryRingSides = getSides(secondarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(18).fill(null).map((_, i) => {
@@ -236,14 +249,16 @@ const secondaryRingSides = getSides(secondarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor =
-        bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
-          : pickRandom(GRAY_COLORS);
+      const strokeColor = hasColoredStroke
+        ? coloredSecondaryStroke
+        : bgType === BgType.Light
+        ? pickRandom(DARK_GRAY_COLORS)
+        : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         pickRandom(primaryLengths),
         pickRandom(primaryLengths) * (i / 10),
       ]);
+      const texture = pickRandom([0, 1, 2]);
 
       return {
         thetaStart,
@@ -252,11 +267,14 @@ const secondaryRingSides = getSides(secondarySideCount, sides).map(
         color,
         opacity: 1,
         strokeColor,
+        texture,
       };
     }),
   })
 );
 
+const coloredTertiaryStroke =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
 const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(9).fill(null).map((_, i) => {
@@ -265,10 +283,11 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor =
-        bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
-          : pickRandom(GRAY_COLORS);
+      const strokeColor = hasColoredStroke
+        ? coloredTertiaryStroke
+        : bgType === BgType.Light
+        ? pickRandom(DARK_GRAY_COLORS)
+        : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         ...new Array(81)
           .fill(null)
@@ -280,6 +299,7 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
           ),
         Math.PI * 2,
       ]);
+      const texture = pickRandom([0, 1, 2]);
 
       return {
         thetaStart,
@@ -288,11 +308,14 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
         color,
         opacity: length === Math.PI * 2 ? pickRandom([0.8, 1]) : 1,
         strokeColor,
+        texture,
       };
     }),
   })
 );
 
+const coloredQuaternaryStroke =
+  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
 const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(4).fill(null).map((_, i) => {
@@ -301,10 +324,11 @@ const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
         : pickRandomColorWithTheme(primaryColor, COLORS, COLORS.length * 10);
 
       const type = pickRandom(ringSectionTypes);
-      const strokeColor =
-        bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
-          : pickRandom(GRAY_COLORS);
+      const strokeColor = hasColoredStroke
+        ? coloredQuaternaryStroke
+        : bgType === BgType.Light
+        ? pickRandom(DARK_GRAY_COLORS)
+        : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         ...new Array(36)
           .fill(null)
@@ -316,6 +340,7 @@ const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
           ),
         Math.PI * 2,
       ]);
+      const texture = pickRandom([0, 1, 2]);
 
       return {
         thetaStart,
@@ -324,6 +349,7 @@ const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
         type,
         color,
         strokeColor,
+        texture,
       };
     }),
   })
@@ -401,12 +427,12 @@ const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
 
 /****************************************************** */
 
-const strobesCount = 2;
-// bgType === BgType.Light
-//   ? 0
-//   : masterType === MasterAmplificationType.DarkLitStrobes || hasFog
-//   ? pickRandom([2, 3, 4])
-//   : pickRandom([0, 0, 0, pickRandom([1, 2])]);
+const strobesCount =
+  bgType === BgType.Light
+    ? 0
+    : masterType === MasterAmplificationType.DarkLitStrobes || hasFog
+    ? pickRandom([2, 3, 4])
+    : pickRandom([0, 0, 0, pickRandom([1, 2])]);
 const strobesSides = getSides(strobesCount, remainingSides);
 const strobes = new Array(strobesCount).fill(null).map((_, outerIndex) => {
   const anglePower = pickRandomDecimalFromInterval(4, 5);
@@ -465,13 +491,12 @@ const RingSection = ({
   const texture = useTexture({
     map: `${process.env.PUBLIC_URL}/texture.jpg`,
   });
-
-  // Object.keys(texture).forEach((key) => {
-  //   texture[key as keyof typeof texture].wrapS = RepeatWrapping;
-  //   texture[key as keyof typeof texture].wrapT = RepeatWrapping;
-  //   texture[key as keyof typeof texture].repeat.x = 1 + outerRadius / 4;
-  //   texture[key as keyof typeof texture].repeat.y = 1 + outerRadius / 4;
-  // });
+  const texture2 = useTexture({
+    map: `${process.env.PUBLIC_URL}/texture2.jpg`,
+  });
+  const texture3 = useTexture({
+    map: `${process.env.PUBLIC_URL}/texture3.jpg`,
+  });
 
   return (
     // @ts-ignore
@@ -494,7 +519,7 @@ const RingSection = ({
             : Math.PI / (6 + outerIndex),
         ]}
       />
-      {section.type === 1 ? (
+      {section.type === RingSectionTypes.Filled ? (
         hasGradient && !isMobileSafari && section.color === primaryColor ? (
           <meshStandardMaterial
             transparent
@@ -517,9 +542,24 @@ const RingSection = ({
             depthWrite={false}
             toneMapped={false}
             color={section.color}
-            // {...texture}
           />
         )
+      ) : section.type === RingSectionTypes.Textured ? (
+        <meshStandardMaterial
+          transparent
+          opacity={section.opacity}
+          blending={AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          color={section.color}
+          map={
+            section.texture === 0
+              ? texture.map
+              : section.texture === 1
+              ? texture2.map
+              : texture3.map
+          }
+        />
       ) : (
         <>
           <meshBasicMaterial transparent opacity={0} />
@@ -600,10 +640,13 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         return;
       }
 
-      const targetX =
-        Math.round(12 * Math.cos(strobeSprings[i].rotation.get()) * 100) / 100;
-      const targetY =
-        Math.round(12 * Math.sin(strobeSprings[i].rotation.get()) * 100) / 100;
+      const rotation =
+        strobeSprings && strobeSprings[i] && strobeSprings[i].rotation
+          ? strobeSprings[i].rotation.get()
+          : strobesSides[i];
+
+      const targetX = Math.round(12 * Math.cos(rotation) * 100) / 100;
+      const targetY = Math.round(12 * Math.sin(rotation) * 100) / 100;
 
       spotLightRefs.current[i].target.position.set(targetX, targetY, 0.5);
       spotLightRefs.current[i].target.updateMatrixWorld();
@@ -720,8 +763,12 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
     setStrobeSprings.start((i) => ({
       rotation: pickRandomDecimalFromInterval(
-        strobeSprings[i].rotation.get() - Math.PI / 8,
-        strobeSprings[i].rotation.get() + Math.PI / 8,
+        strobeSprings && strobeSprings[i] && strobeSprings[i].rotation
+          ? strobeSprings[i].rotation.get() - Math.PI / 8
+          : strobesSides[i] - Math.PI / 8,
+        strobeSprings && strobeSprings[i] && strobeSprings[i].rotation
+          ? strobeSprings[i].rotation.get() + Math.PI / 8
+          : strobesSides[i] + Math.PI / 8,
         2,
         Math.random
       ),

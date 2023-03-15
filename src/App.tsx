@@ -137,7 +137,7 @@ const App = () => {
     >
       <Suspense fallback={null}>
         <Scene canvasRef={canvasRef} />
-        <Stats />
+        {/* <Stats /> */}
       </Suspense>
     </Canvas>
   );
