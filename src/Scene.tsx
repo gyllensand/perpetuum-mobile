@@ -489,14 +489,17 @@ const RingSection = ({
   innerRadius,
   outerRadius,
   section,
-  springRotation,
+  springValues: { rotation, scale },
 }: {
   outerIndex: number;
   innerIndex: number;
   innerRadius: number;
   outerRadius: number;
   section: RingSectionData;
-  springRotation: SpringValue<number[]>;
+  springValues: {
+    rotation: SpringValue<number[]>;
+    scale: SpringValue<number[]>;
+  };
 }) => {
   const texture = useTexture({
     map: `${process.env.PUBLIC_URL}/texture.jpg`,
@@ -510,7 +513,7 @@ const RingSection = ({
 
   return (
     // @ts-ignore
-    <a.mesh rotation={springRotation}>
+    <a.mesh rotation={rotation} scale={scale}>
       <ringGeometry
         args={[
           innerRadius,
@@ -595,6 +598,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     primaryRingSides[0].ringSections.length,
     () => ({
       rotation: [0, 0, 0],
+      scale: [1, 1, 1],
     })
   );
 
@@ -602,6 +606,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     secondaryRingSides[0].ringSections.length,
     () => ({
       rotation: [0, 0, 0],
+      scale: [1, 1, 1],
     })
   );
 
@@ -609,6 +614,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     tertiaryRingSides[0].ringSections.length,
     () => ({
       rotation: [0, 0, 0],
+      scale: [1, 1, 1],
     })
   );
 
@@ -616,6 +622,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     quaternaryRingSides[0].ringSections.length,
     () => ({
       rotation: [0, 0, 0],
+      scale: [1, 1, 1],
     })
   );
 
@@ -704,8 +711,41 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     animateSpikes();
   }, [animateGrooves, animateSpikes]);
 
+  const onPointerDown = useCallback(
+    (e: PointerEvent) => {
+      setPrimarySidesSpring.start((i) => ({
+        scale: [0.95, 0.95, 1],
+        delay: i * 10,
+        config: { mass: 1, tension: 350, friction: 20 },
+      }));
+      setSecondarySidesSpring.start((i) => ({
+        scale: [0.95, 0.95, 1],
+        delay: i * 10,
+        config: { mass: 1, tension: 350, friction: 20 },
+      }));
+
+      setTertiarySidesSpring.start((i) => ({
+        scale: [0.95, 0.95, 1],
+        delay: i * 10,
+        config: { mass: 1, tension: 350, friction: 20 },
+      }));
+
+      setQuaternarySidesSpring.start((i) => ({
+        scale: [0.95, 0.95, 1],
+        delay: i * 10,
+        config: { mass: 1, tension: 350, friction: 20 },
+      }));
+    },
+    [
+      setPrimarySidesSpring,
+      setSecondarySidesSpring,
+      setTertiarySidesSpring,
+      setQuaternarySidesSpring,
+    ]
+  );
+
   const currentShuffleSide = useRef<number>(0);
-  const onPointerDown = useCallback(() => {
+  const onPointerUp = useCallback(() => {
     setCameraSprings.start({
       position: [
         pickRandomDecimalFromInterval(-15, 15, 2, Math.random),
@@ -726,6 +766,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     currentShuffleSide.current = newShuffleSide;
 
     setPrimarySidesSpring.start((i) => ({
+      scale: [1, 1, 1],
       rotation: [
         0,
         0,
@@ -742,6 +783,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       config: { mass: 3, tension: 100, friction: 25 },
     }));
     setSecondarySidesSpring.start((i) => ({
+      scale: [1, 1, 1],
       rotation: [
         0,
         0,
@@ -758,6 +800,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       config: { mass: 3, tension: 100, friction: 25 },
     }));
     setTertiarySidesSpring.start((i) => ({
+      scale: [1, 1, 1],
       rotation: [
         0,
         0,
@@ -774,6 +817,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       config: { mass: 3, tension: 100, friction: 25 },
     }));
     setQuaternarySidesSpring.start((i) => ({
+      scale: [1, 1, 1],
       rotation: [
         0,
         0,
@@ -856,11 +900,13 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     }
 
     ref.addEventListener("pointerdown", onPointerDown);
+    ref.addEventListener("pointerup", onPointerUp);
 
     return () => {
       ref.removeEventListener("pointerdown", onPointerDown);
+      ref.removeEventListener("pointerup", onPointerUp);
     };
-  }, [onPointerDown, canvasRef]);
+  }, [onPointerUp, onPointerDown, canvasRef]);
 
   return (
     <>
@@ -868,7 +914,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         <color attach="background" args={[bgColor]} />
       )}
       {hasFog && <fog attach="fog" args={[fogColor, 5, 30]} />}
-      <OrbitControls enabled={true} />
+      <OrbitControls enabled={false} />
       <ambientLight
         intensity={
           hasSpotLightMode ||
@@ -922,7 +968,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex + 1}
                 outerRadius={innerIndex + 2}
-                springRotation={primarySidesSpring[innerIndex].rotation}
+                springValues={primarySidesSpring[innerIndex]}
               />
             ))}
           </group>
@@ -938,7 +984,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 2 + 1}
                 outerRadius={innerIndex * 2 + 3}
-                springRotation={secondarySidesSpring[innerIndex].rotation}
+                springValues={secondarySidesSpring[innerIndex]}
               />
             ))}
           </group>
@@ -954,7 +1000,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 4 + 1}
                 outerRadius={innerIndex * 4 + 5}
-                springRotation={tertiarySidesSpring[innerIndex].rotation}
+                springValues={tertiarySidesSpring[innerIndex]}
               />
             ))}
           </group>
@@ -970,7 +1016,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 8 + 1}
                 outerRadius={innerIndex * 8 + 9}
-                springRotation={quaternarySidesSpring[innerIndex].rotation}
+                springValues={quaternarySidesSpring[innerIndex]}
               />
             ))}
           </group>
