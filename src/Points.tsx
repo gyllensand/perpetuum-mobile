@@ -20,22 +20,23 @@ const Points = ({ type }: { type: PointsBackgroundType }) => {
       ? `${process.env.PUBLIC_URL}/point.png`
       : `${process.env.PUBLIC_URL}/line.png`
   );
-  const count = 100;
+  const xCount = useMemo(() => 300, []);
+  const yCount = useMemo(() => 100, []);
 
   const pointsArray = useMemo(() => {
     const positions = [];
 
-    for (let xi = 0; xi < count; xi++) {
-      for (let yi = 0; yi < count; yi++) {
-        const x = gap * (xi - count / 2);
-        const y = gap * (yi - count / 2);
+    for (let xi = 0; xi < xCount; xi++) {
+      for (let yi = 0; yi < yCount; yi++) {
+        const x = gap * (xi - xCount / 2);
+        const y = gap * (yi - yCount / 2);
 
         positions.push(x, y, zIndex);
       }
     }
 
     return new Float32Array(positions);
-  }, [count]);
+  }, [xCount, yCount]);
 
   return (
     <points>

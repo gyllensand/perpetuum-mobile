@@ -15,16 +15,12 @@ import {
   useRef,
 } from "react";
 import { a, SpringValue, useSpring, useSprings } from "@react-spring/three";
-import { AdditiveBlending, Vector3 } from "three";
+import { AdditiveBlending, Texture, Vector3 } from "three";
 import {
   COLORED_BG_COLORS,
   COLORS,
   DARK_BG_COLORS,
-  DARK_COLORS,
-  DARK_GRAY_COLORS,
   GRAY_COLORS,
-  LIGHT_BG_COLORS,
-  LIGHT_COLORS,
   LIGHT_GRAY_COLORS,
 } from "./constants";
 import {
@@ -41,6 +37,12 @@ import Grooves from "./Grooves";
 import Points from "./Points";
 import StripeBackground from "./StripeBackground";
 import { isMobile, isMobileSafari } from "react-device-detect";
+import {
+  EffectComposer,
+  ColorAverage,
+  Sepia,
+} from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
 
 const cameraPosition = new Vector3(
   pickRandomDecimalFromInterval(-15, 15),
@@ -50,13 +52,11 @@ const cameraPosition = new Vector3(
 
 enum BgType {
   "Dark" = 0,
-  "Light" = 1,
-  "Colored" = 2,
+  "Colored" = 1,
 }
 const bgType = pickRandom([
-  ...new Array(15).fill(null).map(() => 0),
-  1,
-  ...new Array(3).fill(null).map(() => 2),
+  ...new Array(5).fill(null).map(() => 0),
+  ...new Array(1).fill(null).map(() => 1),
 ]);
 
 enum MasterAmplificationType {
@@ -70,33 +70,26 @@ const masterType: MasterAmplificationType = pickRandom([
   ...new Array(40).fill(null).map(() => 0),
   ...new Array(2).fill(null).map(() => 1),
   ...new Array(5).fill(null).map(() => 2),
-  ...new Array(2).fill(null).map(() => (bgType === BgType.Light ? 0 : 3)),
+  ...new Array(2).fill(null).map(() => 3),
   ...new Array(5).fill(null).map(() => 4),
 ]);
 
 const bgColor =
-  bgType === BgType.Light
-    ? pickRandom(LIGHT_BG_COLORS)
-    : bgType === BgType.Colored
+  bgType === BgType.Colored
     ? pickRandom(COLORED_BG_COLORS)
     : pickRandom(DARK_BG_COLORS);
-const primaryColor =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(LIGHT_COLORS);
-const secondaryColor =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(LIGHT_COLORS);
+const primaryColor = pickRandom(COLORS);
+const secondaryColor = pickRandom(COLORS);
 const hasGradient = pickRandomBoolean();
 const hasTexture = pickRandom([
   ...new Array(24).fill(null).map(() => false),
   true,
 ]);
-const hasSpotLightMode =
-  bgType === BgType.Light
-    ? false
-    : pickRandom([...new Array(12).fill(null).map(() => false), true]);
-const hasFog =
-  bgType === BgType.Light
-    ? false
-    : pickRandom([...new Array(14).fill(null).map(() => false), true]);
+const hasSpotLightMode = pickRandom([
+  ...new Array(12).fill(null).map(() => false),
+  true,
+]);
+const hasFog = pickRandom([...new Array(14).fill(null).map(() => false), true]);
 const fogColor = pickRandom([bgColor, primaryColor]);
 const hasColoredStroke = pickRandom([
   ...new Array(9).fill(null).map(() => false),
@@ -106,16 +99,16 @@ const hasMixedColors = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
 ]);
-const hasStripeBackground = pickRandom([
-  ...new Array(bgType === BgType.Light ? 4 : 9).fill(null).map(() => false),
-  true,
-]);
+export enum EffectType {
+  "Default" = 0,
+  "Mono" = 1,
+  "Sepia" = 2,
+}
+const hasEffect = pickRandom([...new Array(48).fill(null).map(() => 0), 1, 2]);
+const hasStripeBackground = true;
 const hasPointsBackground = hasStripeBackground
   ? false
-  : pickRandom([
-      ...new Array(bgType === BgType.Light ? 2 : 4).fill(null).map(() => false),
-      true,
-    ]);
+  : pickRandom([...new Array(4).fill(null).map(() => false), true]);
 
 export enum PointsBackgroundType {
   "Points" = 0,
@@ -153,15 +146,8 @@ enum RingSectionTypes {
   "Textured" = 2,
 }
 const ringSectionTypes: RingSectionTypes[] =
-  bgType === BgType.Light
-    ? masterType === MasterAmplificationType.EmptySides ||
-      masterType === MasterAmplificationType.Grooves
-      ? [...new Array(3).fill(null).map(() => 0), 1]
-      : hasTexture
-      ? [0, 2, 2, 2]
-      : [0, 1, 1, 1]
-    : masterType === MasterAmplificationType.EmptySides ||
-      masterType === MasterAmplificationType.Grooves
+  masterType === MasterAmplificationType.EmptySides ||
+  masterType === MasterAmplificationType.Grooves
     ? [...new Array(9).fill(null).map(() => 0), 1]
     : hasTexture
     ? [0, 2, 2, 2]
@@ -206,8 +192,7 @@ interface RingSectionData {
 }
 
 const primaryRingSectionsCount = pickRandomIntFromInterval(28, 36);
-const coloredPrimaryStroke =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
+const coloredPrimaryStroke = pickRandom(COLORS);
 const primaryRingSides = getSides(primarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(primaryRingSectionsCount).fill(null).map((_, i) => {
@@ -218,8 +203,6 @@ const primaryRingSides = getSides(primarySideCount, sides).map(
       const type = pickRandom(ringSectionTypes);
       const strokeColor = hasColoredStroke
         ? coloredPrimaryStroke
-        : bgType === BgType.Light
-        ? pickRandom(DARK_GRAY_COLORS)
         : pickRandom(GRAY_COLORS);
       const length = pickRandom([
         pickRandom(primaryLengths),
@@ -241,8 +224,7 @@ const primaryRingSides = getSides(primarySideCount, sides).map(
 );
 
 const secondaryRingSectionsCount = pickRandomIntFromInterval(12, 18);
-const coloredSecondaryStroke =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
+const coloredSecondaryStroke = pickRandom(COLORS);
 const secondaryRingSides = getSides(secondarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(secondaryRingSectionsCount)
@@ -255,8 +237,6 @@ const secondaryRingSides = getSides(secondarySideCount, sides).map(
         const type = pickRandom(ringSectionTypes);
         const strokeColor = hasColoredStroke
           ? coloredSecondaryStroke
-          : bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
           : pickRandom(GRAY_COLORS);
         const length = pickRandom([
           pickRandom(primaryLengths),
@@ -278,8 +258,7 @@ const secondaryRingSides = getSides(secondarySideCount, sides).map(
 );
 
 const tertiaryRingSectionsCount = pickRandomIntFromInterval(5, 9);
-const coloredTertiaryStroke =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
+const coloredTertiaryStroke = pickRandom(COLORS);
 const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(tertiaryRingSectionsCount)
@@ -292,8 +271,6 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
         const type = pickRandom(ringSectionTypes);
         const strokeColor = hasColoredStroke
           ? coloredTertiaryStroke
-          : bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
           : pickRandom(GRAY_COLORS);
         const length = pickRandom([
           ...new Array(81)
@@ -322,8 +299,7 @@ const tertiaryRingSides = getSides(tertiarySideCount, sides).map(
 );
 
 const quaternaryRingSectionsCount = pickRandomIntFromInterval(2, 4);
-const coloredQuaternaryStroke =
-  bgType === BgType.Light ? pickRandom(DARK_COLORS) : pickRandom(COLORS);
+const coloredQuaternaryStroke = pickRandom(COLORS);
 const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
   (thetaStart) => ({
     ringSections: new Array(quaternaryRingSectionsCount)
@@ -336,8 +312,6 @@ const quaternaryRingSides = getSides(quaternarySideCount, sides).map(
         const type = pickRandom(ringSectionTypes);
         const strokeColor = hasColoredStroke
           ? coloredQuaternaryStroke
-          : bgType === BgType.Light
-          ? pickRandom(DARK_GRAY_COLORS)
           : pickRandom(GRAY_COLORS);
         const length = pickRandom([
           ...new Array(36)
@@ -416,10 +390,7 @@ const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
   const width = pickRandomDecimalFromInterval(0.4, 0.6);
   const gap = range(0.4, 1.6, 0.02, 0.015, radius);
   const count = pickRandomIntFromInterval(6, 36);
-  const color =
-    bgType === BgType.Light
-      ? pickRandom(DARK_COLORS)
-      : pickRandom(LIGHT_COLORS);
+  const color = pickRandom(COLORS);
   const hasSameDepth = pickRandomBoolean();
   const uniDepth = pickRandomDecimalFromInterval(2, 3);
 
@@ -438,16 +409,14 @@ const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
 /****************************************************** */
 
 const strobesCount =
-  bgType === BgType.Light
-    ? 0
-    : masterType === MasterAmplificationType.DarkLitStrobes || hasFog
+  masterType === MasterAmplificationType.DarkLitStrobes || hasFog
     ? pickRandom([2, 3, 4])
     : pickRandom([0, 0, 0, pickRandom([1, 2])]);
 const strobesSides = getSides(strobesCount, remainingSides);
 const strobes = new Array(strobesCount).fill(null).map((_, outerIndex) => {
   const anglePower = pickRandomDecimalFromInterval(4, 5);
   const angle = pickRandomDecimalFromInterval(3, 4);
-  const color = pickRandom(LIGHT_COLORS);
+  const color = pickRandom(COLORS);
 
   return {
     angle,
@@ -489,6 +458,9 @@ const RingSection = ({
   innerRadius,
   outerRadius,
   section,
+  texture1,
+  texture2,
+  texture3,
   springValues: { rotation, scale },
 }: {
   outerIndex: number;
@@ -496,21 +468,14 @@ const RingSection = ({
   innerRadius: number;
   outerRadius: number;
   section: RingSectionData;
+  texture1: Texture;
+  texture2: Texture;
+  texture3: Texture;
   springValues: {
     rotation: SpringValue<number[]>;
     scale: SpringValue<number[]>;
   };
 }) => {
-  const texture = useTexture({
-    map: `${process.env.PUBLIC_URL}/texture.jpg`,
-  });
-  const texture2 = useTexture({
-    map: `${process.env.PUBLIC_URL}/texture2.jpg`,
-  });
-  const texture3 = useTexture({
-    map: `${process.env.PUBLIC_URL}/texture3.jpg`,
-  });
-
   return (
     // @ts-ignore
     <a.mesh rotation={rotation} scale={scale}>
@@ -567,10 +532,10 @@ const RingSection = ({
           color={section.color}
           map={
             section.texture === 0
-              ? texture.map
+              ? texture1
               : section.texture === 1
-              ? texture2.map
-              : texture3.map
+              ? texture2
+              : texture3
           }
         />
       ) : (
@@ -584,11 +549,22 @@ const RingSection = ({
 };
 
 const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
-  const { aspect } = useThree((state) => ({
+  const { aspect, info } = useThree((state) => ({
     aspect: state.viewport.aspect,
+    info: state.gl.info,
   }));
-
+  console.log(info);
   const spotLightRefs = useRef<any[]>([]);
+
+  const texture1 = useTexture({
+    map: `${process.env.PUBLIC_URL}/texture.jpg`,
+  });
+  const texture2 = useTexture({
+    map: `${process.env.PUBLIC_URL}/texture2.jpg`,
+  });
+  const texture3 = useTexture({
+    map: `${process.env.PUBLIC_URL}/texture3.jpg`,
+  });
 
   const [cameraSprings, setCameraSprings] = useSpring(() => ({
     position: [cameraPosition.x, cameraPosition.y, cameraPosition.z],
@@ -910,9 +886,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
   return (
     <>
-      {bgType !== BgType.Light && (
-        <color attach="background" args={[bgColor]} />
-      )}
+      <color attach="background" args={[bgColor]} />
       {hasFog && <fog attach="fog" args={[fogColor, 5, 30]} />}
       <OrbitControls enabled={false} />
       <ambientLight
@@ -968,6 +942,9 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex + 1}
                 outerRadius={innerIndex + 2}
+                texture1={texture1.map}
+                texture2={texture2.map}
+                texture3={texture3.map}
                 springValues={primarySidesSpring[innerIndex]}
               />
             ))}
@@ -984,6 +961,9 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 2 + 1}
                 outerRadius={innerIndex * 2 + 3}
+                texture1={texture1.map}
+                texture2={texture2.map}
+                texture3={texture3.map}
                 springValues={secondarySidesSpring[innerIndex]}
               />
             ))}
@@ -1000,6 +980,9 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 4 + 1}
                 outerRadius={innerIndex * 4 + 5}
+                texture1={texture1.map}
+                texture2={texture2.map}
+                texture3={texture3.map}
                 springValues={tertiarySidesSpring[innerIndex]}
               />
             ))}
@@ -1016,6 +999,9 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 innerIndex={innerIndex}
                 innerRadius={innerIndex * 8 + 1}
                 outerRadius={innerIndex * 8 + 9}
+                texture1={texture1.map}
+                texture2={texture2.map}
+                texture3={texture3.map}
                 springValues={quaternarySidesSpring[innerIndex]}
               />
             ))}
@@ -1073,6 +1059,16 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       </a.group>
       {hasPointsBackground && <Points type={pointsBackgroundType} />}
       {hasStripeBackground && <StripeBackground />}
+
+      {hasEffect === EffectType.Mono ? (
+        <EffectComposer>
+          <ColorAverage blendFunction={BlendFunction.ALPHA} />
+        </EffectComposer>
+      ) : hasEffect === EffectType.Sepia ? (
+        <EffectComposer>
+          <Sepia intensity={0.5} blendFunction={BlendFunction.ALPHA} />
+        </EffectComposer>
+      ) : null}
     </>
   );
 };

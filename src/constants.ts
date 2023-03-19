@@ -13,11 +13,8 @@ export const COLORS = [
   "#bd22a8",
   "#30f8a0",
   "#249582",
+  "#ffffff",
 ];
-
-export const DARK_COLORS = [...COLORS, "#000000"];
-
-export const LIGHT_COLORS = [...COLORS, "#ffffff"];
 
 export const DARK_BG_COLORS = [
   "#20222B",
@@ -27,21 +24,7 @@ export const DARK_BG_COLORS = [
   "#152a30",
 ];
 
-export const LIGHT_BG_COLORS = [
-  "#ffffff",
-  "#fceeb5",
-  "#fff6d1",
-  "#d8ffdd",
-  "#f7c8d3",
-];
-
-export const COLORED_BG_COLORS = [
-  "#143261",
-  "#0d4236",
-  "#a70202",
-  "#7e1c3b",
-  "#aa336a",
-];
+export const COLORED_BG_COLORS = ["#143261", "#0d4236", "#ac2d0c", "#79297c"];
 
 export const LIGHT_GRAY_COLORS = [
   "#eeeeee",
