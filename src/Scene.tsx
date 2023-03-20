@@ -105,7 +105,10 @@ export enum EffectType {
   "Sepia" = 2,
 }
 const hasEffect = pickRandom([...new Array(48).fill(null).map(() => 0), 1, 2]);
-const hasStripeBackground = true;
+const hasStripeBackground = pickRandom([
+  ...new Array(9).fill(null).map(() => false),
+  true,
+]);
 const hasPointsBackground = hasStripeBackground
   ? false
   : pickRandom([...new Array(4).fill(null).map(() => false), true]);
@@ -619,6 +622,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
   const [spikeScaleSprings, setSpikeScaleSprings] = useSprings(18, (i) => ({
     scale: [1, 1, 1],
+    rotation: [0, 0, 0],
   }));
 
   const [circleSprings, setCircleSprings] = useSprings(circleCount, (i) => ({
@@ -810,6 +814,21 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       config: { mass: 3, tension: 100, friction: 25 },
     }));
 
+    setSpikeScaleSprings.start((i) => ({
+      rotation: [
+        0,
+        0,
+        pickRandomDecimalFromInterval(
+          spikeScaleSprings[i].rotation.get()[2] - Math.PI / 8,
+          spikeScaleSprings[i].rotation.get()[2] + Math.PI / 8,
+          2,
+          Math.random
+        ),
+      ],
+
+      config: { mass: 3, tension: 100, friction: 25 },
+    }));
+
     setStrobeSprings.start((i) => ({
       rotation: pickRandomDecimalFromInterval(
         strobeSprings && strobeSprings[i] && strobeSprings[i].rotation
@@ -860,6 +879,8 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     secondarySidesSpring,
     tertiarySidesSpring,
     quaternarySidesSpring,
+    setSpikeScaleSprings,
+    spikeScaleSprings,
     setStrobeSprings,
     strobeSprings,
     setCameraSprings,
@@ -1009,7 +1030,12 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         ))}
 
         {spikes.map((spike, i) => (
-          <group key={i} position={[0, 0, -0.05]}>
+          <a.group
+            key={i}
+            position={[0, 0, -0.05]}
+            // @ts-ignore
+            rotation={spikeScaleSprings[i].rotation}
+          >
             {spike.spikes.map((o, ii) => (
               <Spikes
                 key={ii}
@@ -1020,7 +1046,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
                 scale={spikeScaleSprings[ii].scale}
               />
             ))}
-          </group>
+          </a.group>
         ))}
 
         {grooves.map((groove, i) => (
