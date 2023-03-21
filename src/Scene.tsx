@@ -199,8 +199,8 @@ masterType = ParamsMasterType[
 ] as unknown as MasterAmplificationType;
 
 hasFog = $fx.getParam("fog");
-hasEffect = $fx.getParam("effect");
-bgType = $fx.getParam("background");
+hasEffect = EffectType[$fx.getParam("effect")] as unknown as EffectType;
+bgType = BgType[$fx.getParam("background")] as unknown as BgType;
 
 const bgColor =
   bgType === BgType.Colored
