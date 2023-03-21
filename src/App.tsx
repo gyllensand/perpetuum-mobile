@@ -13,118 +13,87 @@ console.log(
   "font-size: 12px; background-color: #000000;"
 );
 
-// const path = instrument === 0 ? "hats" : "pops";
-// const baseUrl = `${process.env.PUBLIC_URL}/audio/${path}/`;
+const baseUrl = `${process.env.PUBLIC_URL}/audio/`;
 
-// export interface Sample {
-//   index: number;
-//   sampler: Sampler;
-// }
+export interface Sample {
+  index: number;
+  sampler: Sampler;
+}
 
-// export const HITSOUT: Sample[] = [
-//   {
-//     index: 0,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `out.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-// ];
-
-// export const HITS: Sample[] = [
-//   {
-//     index: 0,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `1.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 1,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `2.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 2,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `3.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 3,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `4.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 4,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `5.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 5,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `6.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 6,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `7.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 7,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `8.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 8,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `9.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-//   {
-//     index: 9,
-//     sampler: new Sampler({
-//       urls: {
-//         1: `10.mp3`,
-//       },
-//       baseUrl,
-//     }),
-//   },
-// ];
+export const HITS: Sample[] = [
+  {
+    index: 0,
+    sampler: new Sampler({
+      urls: {
+        1: `d3.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 1,
+    sampler: new Sampler({
+      urls: {
+        1: `a2.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 2,
+    sampler: new Sampler({
+      urls: {
+        1: `f2s.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 3,
+    sampler: new Sampler({
+      urls: {
+        1: `b2.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 4,
+    sampler: new Sampler({
+      urls: {
+        1: `f3s.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 5,
+    sampler: new Sampler({
+      urls: {
+        1: `d2.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 6,
+    sampler: new Sampler({
+      urls: {
+        1: `e3.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 7,
+    sampler: new Sampler({
+      urls: {
+        1: `e3-2.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+];
 
 const App = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

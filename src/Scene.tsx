@@ -43,6 +43,10 @@ import {
   Sepia,
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
+import { HITS, Sample } from "./App";
+import { start } from "tone";
+
+declare const $fx: any;
 
 const cameraPosition = new Vector3(
   pickRandomDecimalFromInterval(-15, 15),
@@ -54,7 +58,7 @@ enum BgType {
   "Dark" = 0,
   "Colored" = 1,
 }
-const bgType = pickRandom([
+let bgType = pickRandom([
   ...new Array(5).fill(null).map(() => 0),
   ...new Array(1).fill(null).map(() => 1),
 ]);
@@ -66,7 +70,7 @@ enum MasterAmplificationType {
   "DarkLitStrobes" = 3,
   "TertiaryQuaternarySides" = 4,
 }
-const masterType: MasterAmplificationType = pickRandom([
+let masterType: MasterAmplificationType = pickRandom([
   ...new Array(40).fill(null).map(() => 0),
   ...new Array(2).fill(null).map(() => 1),
   ...new Array(5).fill(null).map(() => 2),
@@ -74,10 +78,6 @@ const masterType: MasterAmplificationType = pickRandom([
   ...new Array(5).fill(null).map(() => 4),
 ]);
 
-const bgColor =
-  bgType === BgType.Colored
-    ? pickRandom(COLORED_BG_COLORS)
-    : pickRandom(DARK_BG_COLORS);
 const primaryColor = pickRandom(COLORS);
 const secondaryColor = pickRandom(COLORS);
 const hasGradient = pickRandomBoolean();
@@ -89,8 +89,7 @@ const hasSpotLightMode = pickRandom([
   ...new Array(12).fill(null).map(() => false),
   true,
 ]);
-const hasFog = pickRandom([...new Array(14).fill(null).map(() => false), true]);
-const fogColor = pickRandom([bgColor, primaryColor]);
+let hasFog = pickRandom([...new Array(14).fill(null).map(() => false), true]);
 const hasColoredStroke = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
@@ -104,7 +103,7 @@ export enum EffectType {
   "Mono" = 1,
   "Sepia" = 2,
 }
-const hasEffect = pickRandom([...new Array(48).fill(null).map(() => 0), 1, 2]);
+let hasEffect = pickRandom([...new Array(48).fill(null).map(() => 0), 1, 2]);
 const hasStripeBackground = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
@@ -118,6 +117,96 @@ export enum PointsBackgroundType {
   "Lines" = 1,
 }
 const pointsBackgroundType: PointsBackgroundType = pickRandom([0, 0, 1]);
+
+enum RingSectionAltStart {
+  "Default" = 0,
+  "DoubleSpiral" = 1,
+  "SingleSpiral" = 2,
+}
+let ringAltStart = pickRandom([0, 0, 0, 1, 2]);
+enum RingSectionAltLength {
+  "Default" = 0,
+  "Irregular" = 1,
+  "Flat" = 2,
+}
+let ringAltLength = pickRandom([0, 0, 0, 1, 2, 2]);
+
+enum ParamsMasterType {
+  "Default" = 0,
+  "Empty edges" = 1,
+  "Amplified fat lines" = 2,
+  "Dimmed strobes" = 3,
+  "Amplified large blocks" = 4,
+}
+
+$fx.params([
+  {
+    id: "symmetric",
+    name: "Symmetric sides",
+    type: "boolean",
+    default: ringAltStart === 0 && ringAltLength === 2,
+  },
+  {
+    id: "fog",
+    name: "Fog",
+    type: "boolean",
+    default: hasFog,
+  },
+  {
+    id: "background",
+    name: "Background",
+    type: "select",
+    options: {
+      options: ["Dark", "Colored"],
+    },
+    default: BgType[bgType],
+  },
+  {
+    id: "theme",
+    name: "Visual theme",
+    type: "select",
+    options: {
+      options: [
+        "Default",
+        "Empty edges",
+        "Dimmed strobes",
+        "Amplified fat lines",
+        "Amplified large blocks",
+      ],
+    },
+    default: ParamsMasterType[masterType],
+  },
+  {
+    id: "effect",
+    name: "Grading effect",
+    type: "select",
+    options: {
+      options: ["Default", "Mono", "Sepia"],
+    },
+    default: EffectType[hasEffect],
+  },
+]);
+
+if ($fx.getParam("symmetric")) {
+  ringAltStart = 0;
+  ringAltLength = 2;
+} else {
+  ringAltLength = pickRandom([0, 0, 0, 1]);
+}
+const masterParam = $fx.getParam("theme");
+masterType = ParamsMasterType[
+  masterParam
+] as unknown as MasterAmplificationType;
+
+hasFog = $fx.getParam("fog");
+hasEffect = $fx.getParam("effect");
+bgType = $fx.getParam("background");
+
+const bgColor =
+  bgType === BgType.Colored
+    ? pickRandom(COLORED_BG_COLORS)
+    : pickRandom(DARK_BG_COLORS);
+const fogColor = pickRandom([bgColor, primaryColor]);
 
 const sides = new Array(12).fill(null).map((_, i) => i * (Math.PI / 6));
 const primarySideCount =
@@ -170,19 +259,6 @@ const getSides = (count: number, sideArray: number[]) =>
     array.push(pickRandom(availableSides));
     return array;
   }, []);
-
-enum RingSectionAltStart {
-  "Default" = 0,
-  "DoubleSpiral" = 1,
-  "SingleSpiral" = 2,
-}
-const ringAltStart = pickRandom([0, 0, 0, 1, 2]);
-enum RingSectionAltLength {
-  "Default" = 0,
-  "Irregular" = 1,
-  "Flat" = 2,
-}
-const ringAltLength = pickRandom([0, 0, 0, 1, 2, 2]);
 
 interface RingSectionData {
   thetaStart: number;
@@ -552,11 +628,11 @@ const RingSection = ({
 };
 
 const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
-  const { aspect, info } = useThree((state) => ({
+  const { aspect } = useThree((state) => ({
     aspect: state.viewport.aspect,
-    info: state.gl.info,
   }));
-  console.log(info);
+
+  const toneInitialized = useRef(false);
   const spotLightRefs = useRef<any[]>([]);
 
   const texture1 = useTexture({
@@ -568,6 +644,18 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
   const texture3 = useTexture({
     map: `${process.env.PUBLIC_URL}/texture3.jpg`,
   });
+
+  const lastPlayedHit = useRef<Sample>();
+  // const availableHits = useMemo(
+  //   () => HITS.filter(({ index }) => index !== lastPlayedHit.current?.index),
+  //   [lastPlayedHit]
+  // );
+
+  // useEffect(() => {
+  //   if (lastPlayedHit && lastPlayedHit.sampler.loaded) {
+  //     lastPlayedHit.sampler.triggerAttack("C#-1");
+  //   }
+  // }, [lastPlayedHit]);
 
   const [cameraSprings, setCameraSprings] = useSpring(() => ({
     position: [cameraPosition.x, cameraPosition.y, cameraPosition.z],
@@ -628,6 +716,12 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
   const [circleSprings, setCircleSprings] = useSprings(circleCount, (i) => ({
     rotation: [0, 0, circles[i].rotation],
   }));
+
+  useEffect(() => {
+    HITS.forEach((hit) => {
+      hit.sampler.toDestination();
+    });
+  }, []);
 
   const setStrobeLights = useCallback(() => {
     spotLightRefs.current = spotLightRefs.current.slice(0, strobesCount);
@@ -692,7 +786,7 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
   }, [animateGrooves, animateSpikes]);
 
   const onPointerDown = useCallback(
-    (e: PointerEvent) => {
+    async (e: PointerEvent) => {
       setPrimarySidesSpring.start((i) => ({
         scale: [0.95, 0.95, 1],
         delay: i * 10,
@@ -715,6 +809,11 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
         delay: i * 10,
         config: { mass: 1, tension: 350, friction: 20 },
       }));
+
+      if (!toneInitialized.current) {
+        await start();
+        toneInitialized.current = true;
+      }
     },
     [
       setPrimarySidesSpring,
@@ -744,6 +843,13 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       : currentShuffleSide.current;
 
     currentShuffleSide.current = newShuffleSide;
+
+    const currentSampler = pickRandom(
+      HITS.filter(({ index }) => index !== lastPlayedHit.current?.index),
+      Math.random
+    );
+    lastPlayedHit.current = currentSampler;
+    currentSampler.sampler.triggerAttack("C#-1");
 
     setPrimarySidesSpring.start((i) => ({
       scale: [1, 1, 1],
@@ -814,21 +920,6 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
       config: { mass: 3, tension: 100, friction: 25 },
     }));
 
-    setSpikeScaleSprings.start((i) => ({
-      rotation: [
-        0,
-        0,
-        pickRandomDecimalFromInterval(
-          spikeScaleSprings[i].rotation.get()[2] - Math.PI / 8,
-          spikeScaleSprings[i].rotation.get()[2] + Math.PI / 8,
-          2,
-          Math.random
-        ),
-      ],
-
-      config: { mass: 3, tension: 100, friction: 25 },
-    }));
-
     setStrobeSprings.start((i) => ({
       rotation: pickRandomDecimalFromInterval(
         strobeSprings && strobeSprings[i] && strobeSprings[i].rotation
@@ -879,8 +970,6 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
     secondarySidesSpring,
     tertiarySidesSpring,
     quaternarySidesSpring,
-    setSpikeScaleSprings,
-    spikeScaleSprings,
     setStrobeSprings,
     strobeSprings,
     setCameraSprings,
