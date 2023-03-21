@@ -93,6 +93,99 @@ export const HITS: Sample[] = [
       baseUrl,
     }),
   },
+  {
+    index: 8,
+    sampler: new Sampler({
+      urls: {
+        1: `f3s-2.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+];
+
+export const HITS_LONG: Sample[] = [
+  {
+    index: 0,
+    sampler: new Sampler({
+      urls: {
+        1: `d3-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 1,
+    sampler: new Sampler({
+      urls: {
+        1: `a2-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 2,
+    sampler: new Sampler({
+      urls: {
+        1: `f2s-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 3,
+    sampler: new Sampler({
+      urls: {
+        1: `b2-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 4,
+    sampler: new Sampler({
+      urls: {
+        1: `f3s-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 5,
+    sampler: new Sampler({
+      urls: {
+        1: `d2-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 6,
+    sampler: new Sampler({
+      urls: {
+        1: `e3-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 7,
+    sampler: new Sampler({
+      urls: {
+        1: `e3-2-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
+  {
+    index: 8,
+    sampler: new Sampler({
+      urls: {
+        1: `f3s-2-long.mp3`,
+      },
+      baseUrl,
+    }),
+  },
 ];
 
 const App = () => {

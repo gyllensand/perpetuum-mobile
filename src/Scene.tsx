@@ -43,10 +43,12 @@ import {
   Sepia,
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import { HITS, Sample } from "./App";
+import { HITS, HITS_LONG, Sample } from "./App";
 import { start } from "tone";
 
 declare const $fx: any;
+
+const pitch = pickRandom(["A-2", "A#-2", "B-2", "C-1", "C#-1", "D-1", "D#-1"]);
 
 const cameraPosition = new Vector3(
   pickRandomDecimalFromInterval(-15, 15),
@@ -531,6 +533,17 @@ const circles = new Array(circleCount).fill(null).map(() => {
   };
 });
 
+// @ts-ignore
+window.$fxhashFeatures = {
+  audioPitch: pitch,
+  colorComposition: `${bgColor}, ${primaryColor}, ${secondaryColor}`,
+  sideCount:
+    primaryRingSectionsCount +
+    secondaryRingSectionsCount +
+    tertiaryRingSectionsCount +
+    quaternaryRingSectionsCount,
+};
+
 const RingSection = ({
   outerIndex,
   innerIndex,
@@ -646,16 +659,6 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
   });
 
   const lastPlayedHit = useRef<Sample>();
-  // const availableHits = useMemo(
-  //   () => HITS.filter(({ index }) => index !== lastPlayedHit.current?.index),
-  //   [lastPlayedHit]
-  // );
-
-  // useEffect(() => {
-  //   if (lastPlayedHit && lastPlayedHit.sampler.loaded) {
-  //     lastPlayedHit.sampler.triggerAttack("C#-1");
-  //   }
-  // }, [lastPlayedHit]);
 
   const [cameraSprings, setCameraSprings] = useSpring(() => ({
     position: [cameraPosition.x, cameraPosition.y, cameraPosition.z],
@@ -719,6 +722,9 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
   useEffect(() => {
     HITS.forEach((hit) => {
+      hit.sampler.toDestination();
+    });
+    HITS_LONG.forEach((hit) => {
       hit.sampler.toDestination();
     });
   }, []);
@@ -844,12 +850,15 @@ const Scene = ({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement> }) => {
 
     currentShuffleSide.current = newShuffleSide;
 
+    HITS.filter(({ sampler }) => sampler.triggerRelease(pitch));
+    HITS_LONG.filter(({ sampler }) => sampler.triggerRelease(pitch));
+    const hitArray = pickRandom([HITS, HITS_LONG], Math.random);
     const currentSampler = pickRandom(
-      HITS.filter(({ index }) => index !== lastPlayedHit.current?.index),
+      hitArray.filter(({ index }) => index !== lastPlayedHit.current?.index),
       Math.random
     );
     lastPlayedHit.current = currentSampler;
-    currentSampler.sampler.triggerAttack("C#-1");
+    currentSampler.sampler.triggerAttack(pitch);
 
     setPrimarySidesSpring.start((i) => ({
       scale: [1, 1, 1],
