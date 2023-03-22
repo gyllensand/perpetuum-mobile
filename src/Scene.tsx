@@ -36,7 +36,7 @@ import Spikes from "./Spikes";
 import Grooves from "./Grooves";
 import Points from "./Points";
 import StripeBackground from "./StripeBackground";
-import { isMobile, isMobileSafari } from "react-device-detect";
+import { isMobile } from "react-device-detect";
 import {
   EffectComposer,
   ColorAverage,
@@ -82,7 +82,7 @@ let masterType: MasterAmplificationType = pickRandom([
 
 const primaryColor = pickRandom(COLORS);
 const secondaryColor = pickRandom(COLORS);
-const hasGradient = pickRandomBoolean();
+const hasGradient = pickRandom([false, true]);
 const hasTexture = pickRandom([
   ...new Array(24).fill(null).map(() => false),
   true,
@@ -112,13 +112,13 @@ const hasStripeBackground = pickRandom([
 ]);
 const hasPointsBackground = hasStripeBackground
   ? false
-  : pickRandom([...new Array(4).fill(null).map(() => false), true]);
+  : pickRandom([false, false, true, false, false]);
 
 export enum PointsBackgroundType {
   "Points" = 0,
   "Lines" = 1,
 }
-const pointsBackgroundType: PointsBackgroundType = pickRandom([0, 0, 1]);
+const pointsBackgroundType: PointsBackgroundType = pickRandom([0, 1, 0]);
 
 enum RingSectionAltStart {
   "Default" = 0,
@@ -461,11 +461,12 @@ const spikes = new Array(spikesCount).fill(null).map(() => {
 const groovesCount =
   masterType === MasterAmplificationType.Grooves
     ? pickRandom([10, 11, 12])
-    : pickRandom([1, 2, 3]);
+    : pickRandom([1, 3, 2]);
 const groovesSides =
   masterType === MasterAmplificationType.Grooves
     ? getSides(groovesCount, sides)
     : getSides(groovesCount, remainingSides);
+
 const grooves = new Array(groovesCount).fill(null).map((_, outerIndex) => {
   const radius = pickRandomDecimalFromInterval(0.4, 1.6);
   const width = pickRandomDecimalFromInterval(0.4, 0.6);
@@ -589,7 +590,7 @@ const RingSection = ({
         ]}
       />
       {section.type === RingSectionTypes.Filled ? (
-        hasGradient && !isMobileSafari && section.color === primaryColor ? (
+        hasGradient && !isMobile && section.color === primaryColor ? (
           <meshStandardMaterial
             transparent
             opacity={section.opacity}
