@@ -533,8 +533,7 @@ const circles = new Array(circleCount).fill(null).map(() => {
   };
 });
 
-// @ts-ignore
-window.$fxhashFeatures = {
+$fx.features({
   audioPitch: pitch,
   colorComposition: `${bgColor}, ${primaryColor}, ${secondaryColor}`,
   sideCount:
@@ -542,7 +541,7 @@ window.$fxhashFeatures = {
     secondaryRingSectionsCount +
     tertiaryRingSectionsCount +
     quaternaryRingSectionsCount,
-};
+});
 
 const RingSection = ({
   outerIndex,
