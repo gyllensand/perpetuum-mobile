@@ -189,10 +189,10 @@ $fx.params([
   },
 ]);
 
-if ($fx.getParam("symmetric")) {
+if ($fx.getParam("symmetric") === true) {
   ringAltStart = 0;
   ringAltLength = 2;
-} else {
+} else if ($fx.getParam("symmetric") === false) {
   ringAltLength = pickRandom([0, 0, 0, 1]);
 }
 const masterParam = $fx.getParam("theme");
