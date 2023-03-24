@@ -105,7 +105,7 @@ export enum EffectType {
   "Mono" = 1,
   "Sepia" = 2,
 }
-let hasEffect = pickRandom([...new Array(48).fill(null).map(() => 0), 1, 2]);
+const hasEffect = pickRandom([1, 2, ...new Array(28).fill(null).map(() => 0)]);
 const hasStripeBackground = pickRandom([
   ...new Array(9).fill(null).map(() => false),
   true,
@@ -178,15 +178,6 @@ $fx.params([
     },
     default: ParamsMasterType[masterType],
   },
-  {
-    id: "effect",
-    name: "Grading effect",
-    type: "select",
-    options: {
-      options: ["Default", "Mono", "Sepia"],
-    },
-    default: EffectType[hasEffect],
-  },
 ]);
 
 if ($fx.getParam("symmetric") === true) {
@@ -201,7 +192,6 @@ masterType = ParamsMasterType[
 ] as unknown as MasterAmplificationType;
 
 hasFog = $fx.getParam("fog");
-hasEffect = EffectType[$fx.getParam("effect")] as unknown as EffectType;
 bgType = BgType[$fx.getParam("background")] as unknown as BgType;
 
 const bgColor =
